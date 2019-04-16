@@ -9,6 +9,7 @@ type SingleLink = Option<Rc<RefCell<s_object>>>;
 
 type StackLink = Rc<RefCell<Vec<SingleLink>>>;
 
+#[derive(PartialEq)]
 enum ObjectType {
     INT,
     TWIN
@@ -79,6 +80,16 @@ impl VM {
                     self.mark(&mut t.borrow_mut())
                 }
                 None => println!("Tail not found!")
+            }
+        }
+
+    }
+
+    pub fn mark_all(&mut self) {
+        for i in 0..self.stack_size {
+            // self.mark(self.stack[i]);
+            if let Some(ref stack_item) = self.stack[i] {
+                self.mark(&mut stack_item.borrow_mut());
             }
         }
     }
