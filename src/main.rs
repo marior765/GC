@@ -9,7 +9,7 @@ type SingleLink = Option<Rc<RefCell<s_object>>>;
 
 type StackLink = Rc<RefCell<Vec<SingleLink>>>;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 enum ObjectType {
     INT,
     TWIN
@@ -21,6 +21,7 @@ enum ObjectType {
 //     }
 // }
 
+#[derive(Clone)]
 struct s_object {
     type_obj: ObjectType,
     marked: u8,
@@ -28,6 +29,20 @@ struct s_object {
     value: i32,
     head: SingleLink,
     tail: SingleLink,
+}
+
+impl s_object {
+
+    pub fn new(type_obj: ObjectType, marked: u8, next: SingleLink, value: i32, head: SingleLink, tail: SingleLink) -> Self {
+        s_object {
+            type_obj,
+            marked,
+            next,
+            value,
+            head,
+            tail
+        }
+    }
 }
 
 struct VM {
@@ -92,5 +107,67 @@ impl VM {
                 self.mark(&mut stack_item.borrow_mut());
             }
         }
+    }
+
+    pub fn markspeep(&mut self) {
+        
+    }
+
+    pub fn gc(&mut self) {
+        let past_num_objects: i32 = self.num_objects;
+
+        self.mark_all();
+        self.markspeep();
+
+        self.max_objects = self.num_objects * 2;
+
+        println!("Collected {} objects, {} left", past_num_objects - self.num_objects, self.num_objects );
+    }
+
+    pub fn new_object(&mut self, type_obj: ObjectType) -> s_object {
+        if self.num_objects == self.max_objects { self.gc(); }
+
+        let object: s_object = s_object::new(type_obj, 0, &mut self.first_object.cloned(), 0, None, None);
+
+        self.num_objects += 1;
+
+        object
+    }
+
+    pub fn push_int(self, int_value: i32) {
+        let mut object = self.new_object(ObjectType::INT);
+
+        object.value = int_value;
+
+        self.push(object);
+    }
+
+    pub fn push_pair(self) -> s_object {
+        let mut object = self.new_object(ObjectType::TWIN);
+
+        // object.tail = self.pop();
+        // object.head = self.pop();
+
+        self.push(object);
+        object
+    }
+
+    pub fn object_print(self, object: s_object) {
+        match object.type_obj {
+            ObjectType::INT => println!("{}", object.type_obj),
+            ObjectType::TWIN => {
+                print!("(");
+                self.object_print(object.head);
+                print!(", ");
+                self.object_print(object.tail);
+                print!(")");
+            }
+        }
+    }
+
+    pub fn free(mut self) {
+        self.stack_size = 0;
+        self.gc();
+        std::mem::forget(self);
     }
 }
