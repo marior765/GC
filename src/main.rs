@@ -9,7 +9,7 @@ use  {
     }
 };
 
-const STACK_MAX_SIZE: usize = 526;
+const STACK_MAX_SIZE: usize = 256;
 const IGCT: i32 = 8;
 
 type SingleLink = Option<Rc<RefCell<Object>>>;
@@ -47,7 +47,7 @@ impl Display for ObjectType {
 #[derive(Clone)]
 struct Object {
     type_obj: ObjectType,
-    marked: u8,
+    marked: bool, // u8
     next: SingleLink,
     value: i32,
     head: SingleLink,
@@ -56,7 +56,7 @@ struct Object {
 
 impl Object {
 
-    pub fn new(type_obj: ObjectType, marked: u8, next: SingleLink, value: i32, head: SingleLink, tail: SingleLink) -> Self {
+    pub fn new(type_obj: ObjectType, marked: bool, next: SingleLink, value: i32, head: SingleLink, tail: SingleLink) -> Self {
         Object {
             type_obj,
             marked,
@@ -88,23 +88,23 @@ impl VM {
         }
     }
 
-    // pub fn pop(&mut self) -> SingleLink {
-    //     self.stack[0]
-    // }
+    pub fn pop(&mut self) -> SingleLink {
+        self.stack.remove(0)
+    }
 
     pub fn push(&mut self, item: Object) {
         self.stack_size += 1;
-        self.stack.push(
-            Some(Rc::new(
-                RefCell::new(item)
-            )
-        ))
+        self.stack.resize(self.stack.len() + 1, Some(Rc::new(RefCell::new(item))));
+        // self.stack.push(
+        //     Some(Rc::new(
+        //         RefCell::new(item)
+        //     )
+        // ))
     }
 
-    pub fn mark<'a>(&mut self, item: &'a mut Object) {
-        if item.marked != 1 {
-            item.marked = 1;
-        }
+    pub fn mark(&mut self, item: &mut Object) {
+        if item.marked == true { return; }
+        item.marked = true;
 
         if item.type_obj == ObjectType::TWIN {
             match item.head {
@@ -125,10 +125,10 @@ impl VM {
 
     // pub fn mark_all(&mut self) {
     //     for i in 0..self.stack_size {
-    //         // self.mark(self.stack[i]);
-    //         if let Some(ref stack_item) = self.stack[i] {
-    //             self.mark(&mut stack_item.borrow_mut());
+    //         if let Some(ref mut stack_item) = self.stack[i] {
+    //             self.mark(stack_item.borrow_mut());
     //         }
+    //         // self.mark(self.stack[i].borrow().clone());
     //     }
     // }
 
@@ -147,10 +147,21 @@ impl VM {
         println!("Collected {} objects, {} left", past_num_objects - self.num_objects, self.num_objects );
     }
 
+    // pub fn new_object(&mut self, type_obj: ObjectType) -> Object {
+    //     if self.num_objects == self.max_objects { self.gc(); }
+
+    //     let object: Object = Object::new(type_obj, false, self.first_object, 0, None, None);
+    //     self.first_object = Some(Rc::new(RefCell::new(object)));
+
+    //     self.num_objects += 1;
+
+    //     object
+    // }
     pub fn new_object(&mut self, type_obj: ObjectType) -> Object {
         if self.num_objects == self.max_objects { self.gc(); }
 
-        let object: Object = Object::new(type_obj, 0, self.first_object.clone(), 0, None, None);
+        let object: Object = Object::new(type_obj, false, self.first_object.clone(), 0, None, None);
+        // self.first_object = Some(Rc::new(RefCell::new(object)));
 
         self.num_objects += 1;
 
@@ -166,13 +177,12 @@ impl VM {
     }
 
     pub fn push_pair(&mut self) {
-        let object = self.new_object(ObjectType::TWIN);
+        let mut object = self.new_object(ObjectType::TWIN);
 
-        // object.tail = self.pop();
-        // object.head = self.pop();
+        object.tail = self.pop();
+        object.head = self.pop();
 
         self.push(object);
-        // object.
     }
 
     // pub fn object_print(&self, object: Option<Object>) {
@@ -201,7 +211,8 @@ fn first_test() {
     println!("1: Objects on the stack are preserved.");
 	let mut vm: VM = VM::init();
 	vm.push_int(1);
-	vm.push_int(2);
+    vm.push_int(2);
+    
 	vm.gc();
 	vm.free();
 }
@@ -211,8 +222,9 @@ fn second_test() {
 	let mut vm: VM = VM::init();
 	vm.push_int(1);
 	vm.push_int(2);
-    // vm.pop();
-    // vm.pop();
+    vm.pop();
+    vm.pop();
+
 	vm.gc();
 	vm.free();
 }
@@ -224,7 +236,7 @@ fn third_test() {
 	vm.push_int(2);
 	vm.push_pair();
 	vm.push_int(3);
-	vm.push_int(4);
+	
 	vm.push_int(5);
 	vm.push_int(6);
 
@@ -240,7 +252,7 @@ fn perfomance() {
             vm.push_int(i);
         }
         for k in 0..20 {
-            // vm.pop();
+            vm.pop();
         }
     }
     vm.free();
